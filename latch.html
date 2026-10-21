@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-t19uecEfDrIFImmTB1V/jqWd1i7tqY0LTn7j5WsewrQ='; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Latch – a simple password manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1C2142;--muted:#5E6486;--bg:#E8ECFA;--glass:rgba(255,255,255,.36);--glass2:rgba(255,255,255,.6);--edge:rgba(255,255,255,.75);--line:rgba(60,70,140,.16);--accent:#5B6CFF;--soft:rgba(91,108,255,.14);--bad:#E5484D;--shadow:0 10px 40px rgba(50,60,140,.13);--blur:blur(26px) saturate(180%);--b1:rgba(129,140,248,.6);--b2:rgba(244,114,182,.45);--b3:rgba(34,211,238,.45);--b4:rgba(253,224,71,.35);
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root{--ink:#EEF1FF;--muted:#A3A9CC;--bg:#0A0E22;--glass:rgba(255,255,255,.08);--glass2:rgba(255,255,255,.16);--edge:rgba(255,255,255,.22);--line:rgba(255,255,255,.12);--accent:#8B95FF;--soft:rgba(139,149,255,.2);--bad:#FF7A82;--shadow:0 10px 40px rgba(0,0,0,.4);--b1:rgba(79,70,229,.55);--b2:rgba(190,24,93,.4);--b3:rgba(8,145,178,.4);--b4:rgba(124,58,237,.35)}}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Outfit,system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased;min-height:100vh}
+body::before{content:"";position:fixed;inset:-10%;z-index:-1;background:radial-gradient(40% 40% at 20% 25%,var(--b1),transparent 70%),radial-gradient(35% 35% at 80% 20%,var(--b2),transparent 70%),radial-gradient(45% 45% at 65% 85%,var(--b3),transparent 70%),radial-gradient(30% 30% at 10% 85%,var(--b4),transparent 70%);animation:drift 22s ease-in-out infinite alternate}
+@keyframes drift{to{transform:translate3d(3%,-3%,0) rotate(6deg) scale(1.08)}}
+@keyframes rise{from{opacity:0;transform:translateY(18px)}}
+@keyframes fade{from{opacity:0}}
+@keyframes pop{from{opacity:0;transform:translateY(14px) scale(.96)}}
+@keyframes float{to{transform:translateY(-8px)}}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+.hidden{display:none!important}
+.i{width:1.15em;height:1.15em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+header.top{position:sticky;top:0;z-index:20;padding-top:12px}
+.bar{display:flex;align-items:center;justify-content:space-between;height:62px;padding:0 12px 0 18px;width:calc(100% - 24px);isolation:isolate;position:relative}
+.bar::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:999px;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--edge);box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.5)}
+.logo{display:flex;align-items:center;gap:10px;font-weight:600;font-size:20px;letter-spacing:-.02em;background:none;border:0;cursor:pointer;padding:0;transition:transform .3s}
+.logo:hover{transform:scale(1.04)}
+.logo svg{width:30px;height:30px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--edge);background:var(--glass);backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);border-radius:999px;padding:9px 18px;font-weight:500;cursor:pointer;min-height:42px;box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 4px 14px rgba(40,50,120,.08);transition:transform .3s cubic-bezier(.2,.8,.2,1),background .3s,box-shadow .3s}
+.btn:hover{transform:translateY(-2px);background:var(--glass2);box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 10px 24px rgba(40,50,120,.16)}
+.btn:active{transform:scale(.96)}
+.btn.primary{color:#fff;background:linear-gradient(135deg,rgba(99,114,255,.95),rgba(160,100,255,.9));border-color:rgba(255,255,255,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 10px 26px rgba(91,108,255,.38)}
+.btn.primary:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 14px 32px rgba(91,108,255,.5)}
+.btn.danger{color:var(--bad)}
+.btn.sm{padding:6px 13px;min-height:34px;font-size:14px}
+.card{position:relative;overflow:hidden;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--edge);border-radius:28px;padding:24px;box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.55)}
+.card::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.28),transparent 42%);pointer-events:none}
+#landing:not(.hidden),#app:not(.hidden){animation:fade .7s}
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center;padding:72px 0 56px}
+.hero>*{animation:rise .9s cubic-bezier(.2,.8,.2,1) both}
+.hero>.card{animation:rise .9s .15s cubic-bezier(.2,.8,.2,1) both,float 8s 1.2s ease-in-out infinite alternate}
+h1{font-size:clamp(36px,5.4vw,60px);line-height:1.05;letter-spacing:-.035em;margin:0 0 18px;font-weight:600}
+.lead{font-size:18px;color:var(--muted);max-width:46ch;margin:0 0 28px;font-weight:300}
+.gen-out{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.22);border:1px solid var(--edge);border-radius:18px;padding:10px 10px 10px 16px;box-shadow:inset 0 2px 6px rgba(40,50,120,.08)}
+.gen-out output{flex:1;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:17px;word-break:break-all;min-height:28px}
+.meter{height:6px;border-radius:3px;background:var(--line);margin:16px 0 6px;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--bad);border-radius:3px;transition:width .5s cubic-bezier(.2,.8,.2,1),background .4s}
+.small{font-size:13px;color:var(--muted)}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin:14px 0}
+.opts label{display:flex;gap:8px;align-items:center;font-size:14px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
+.field{display:block;margin-bottom:14px}
+.field span{display:block;font-size:14px;font-weight:500;margin-bottom:6px}
+.field input[type=text],.field input[type=email],.field input[type=password],.field input[type=search]{width:100%;padding:12px 16px;border:1px solid var(--edge);border-radius:14px;background:rgba(255,255,255,.22);box-shadow:inset 0 2px 6px rgba(40,50,120,.08);transition:box-shadow .3s,background .3s}
+.field input:focus{outline:none;background:rgba(255,255,255,.4);box-shadow:0 0 0 3px var(--soft),inset 0 2px 6px rgba(40,50,120,.06)}
+.features{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;padding:24px 0 80px}
+.features>div{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--edge);border-radius:28px;padding:24px;box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.5);transition:transform .4s cubic-bezier(.2,.8,.2,1)}
+.features>div:hover{transform:translateY(-4px)}
+.features h3{margin:0 0 6px;font-size:18px;font-weight:600}
+.features p{margin:0;color:var(--muted);font-weight:300}
+.ico{width:44px;height:44px;border-radius:14px;background:var(--glass2);border:1px solid var(--edge);display:grid;place-items:center;margin-bottom:14px}
+.ico svg{width:22px;height:22px;stroke:var(--accent);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+footer{padding:24px 0;color:var(--muted);font-size:13px}
+.app{display:grid;grid-template-columns:360px 1fr;gap:24px;padding:32px 0 64px;align-items:start}
+.app h2{margin:0 0 4px;font-size:22px;letter-spacing:-.02em;font-weight:600}
+.list{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.item{display:flex;align-items:center;gap:14px;padding:12px;border:1px solid var(--edge);border-radius:20px;background:rgba(255,255,255,.22);animation:fade .35s;transition:transform .3s,background .3s}
+.item:hover{background:var(--glass2);transform:translateX(3px)}
+.thumb{width:48px;height:48px;border-radius:14px;background:var(--soft);color:var(--accent);display:grid;place-items:center;font-weight:600;font-size:20px;flex:none;overflow:hidden;border:1px solid var(--edge)}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.item .meta{flex:1;min-width:0}
+.item b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.pw{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.empty{text-align:center;padding:40px 16px;color:var(--muted);border:1px dashed var(--line);border-radius:20px}
+.profile{position:relative}
+.avatar{width:42px;height:42px;border-radius:50%;border:1px solid var(--edge);background:var(--glass2);color:var(--accent);font-weight:600;cursor:pointer;display:grid;place-items:center;overflow:hidden;padding:0;box-shadow:0 0 0 3px var(--soft);transition:transform .3s,box-shadow .3s}
+.avatar:hover{transform:scale(1.07);box-shadow:0 0 0 5px var(--soft)}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.menu{position:absolute;right:0;top:54px;width:264px;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--edge);border-radius:22px;padding:8px;box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.5);transform-origin:top right;animation:pop .3s cubic-bezier(.2,.9,.3,1.1)}
+.menu .who{padding:12px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.menu .who b{display:block;font-weight:600}
+.menu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;padding:10px 12px;border-radius:12px;cursor:pointer;transition:background .25s,transform .25s}
+.menu button:hover{background:var(--glass2);transform:translateX(3px)}
+dialog{border:1px solid var(--edge);border-radius:28px;background:var(--glass2);backdrop-filter:blur(34px) saturate(190%);-webkit-backdrop-filter:blur(34px) saturate(190%);color:var(--ink);padding:26px;width:min(440px,calc(100vw - 32px));box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.6)}
+dialog[open]{animation:pop .4s cubic-bezier(.2,.9,.3,1.1)}
+dialog::backdrop{background:rgba(20,25,70,.22);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+dialog[open]::backdrop{animation:fade .4s}
+dialog h2{margin:0 0 16px;font-size:22px;font-weight:600}
+.err{color:var(--bad);font-size:14px;min-height:20px;margin:0 0 8px}
+.photo-pick{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.photo-pick .thumb{cursor:pointer;width:56px;height:56px}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--glass2);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--edge);box-shadow:var(--shadow);padding:10px 20px;border-radius:999px;font-weight:500;z-index:50;animation:rise .4s}
+@media (max-width:860px){.hero{grid-template-columns:1fr;padding-top:40px;gap:32px}.features{grid-template-columns:1fr}.app{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*,*::before{animation:none!important;transition:none!important}}
+
+.particles{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.particles i{position:absolute;border-radius:50%;background:radial-gradient(circle at 30% 28%,rgba(255,255,255,.75),rgba(255,255,255,.12) 45%,rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.4);animation:bob ease-in-out infinite alternate,glow ease-in-out infinite alternate}
+@keyframes bob{to{transform:translate(var(--dx),var(--dy))}}
+@keyframes glow{from{opacity:.3}to{opacity:.85}}
+.btn{position:relative;overflow:hidden}
+.rip{position:absolute;border-radius:50%;background:rgba(255,255,255,.55);transform:scale(0);animation:ripple .6s ease-out forwards;pointer-events:none}
+@keyframes ripple{to{transform:scale(2.2);opacity:0}}
+.btn.primary::after{content:"";position:absolute;top:0;bottom:0;width:40%;left:-60%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.45),transparent);transform:skewX(-20deg);animation:sheen 4.5s ease-in-out infinite;pointer-events:none}
+@keyframes sheen{0%,60%{left:-60%}100%{left:130%}}
+.btn .i,.menu .i{transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.btn:hover .i,.menu button:hover .i{transform:scale(1.18) rotate(-8deg)}
+.btn:hover svg:has(use[href="#i-refresh"]){transform:rotate(180deg)}
+.logo svg{animation:breathe 5s ease-in-out infinite}
+@keyframes breathe{50%{transform:scale(1.07) rotate(-3deg)}}
+.avatar{animation:ring 3s ease-in-out infinite}
+@keyframes ring{50%{box-shadow:0 0 0 6px var(--soft)}}
+.features>div{animation:rise .8s both}
+.features>div:nth-child(2){animation-delay:.1s}.features>div:nth-child(3){animation-delay:.2s}
+.ico{animation:bob2 4s ease-in-out infinite alternate}
+.features>div:nth-child(2) .ico{animation-delay:-1.3s;animation-duration:4.6s}
+.features>div:nth-child(3) .ico{animation-delay:-2.6s;animation-duration:5.2s}
+@keyframes bob2{to{transform:translateY(-5px)}}
+.item:nth-child(2){animation-delay:.05s}.item:nth-child(3){animation-delay:.1s}.item:nth-child(4){animation-delay:.15s}.item:nth-child(5){animation-delay:.2s}
+.menu button{animation:rise .4s both}
+.menu button:nth-of-type(2){animation-delay:.05s}.menu button:nth-of-type(3){animation-delay:.1s}.menu button:nth-of-type(4){animation-delay:.15s}
+dialog[open] form>*{animation:rise .5s both}
+dialog[open] form>*:nth-child(2){animation-delay:.06s}dialog[open] form>*:nth-child(3){animation-delay:.12s}dialog[open] form>*:nth-child(4){animation-delay:.18s}dialog[open] form>*:nth-child(5){animation-delay:.24s}dialog[open] form>*:nth-child(6){animation-delay:.3s}
+.meter i{position:relative;overflow:hidden}
+.meter i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);transform:translateX(-100%);animation:shim 2.2s linear infinite}
+@keyframes shim{to{transform:translateX(100%)}}
+.gen-out output.flash{animation:flash .45s}
+@keyframes flash{from{opacity:0;filter:blur(4px);transform:translateY(4px)}}
+@media (prefers-reduced-motion:reduce){*::after,.particles i{animation:none!important}}
+</style>
+</head>
+<body><svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="i-login" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5M15 12H3"/></symbol><symbol id="i-user-plus" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1M19 8v6M22 11h-6"/></symbol><symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="3"/><path d="M5 15V6a3 3 0 0 1 3-3h9"/></symbol><symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></symbol><symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol><symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></symbol><symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 17v4M17 19h4"/></symbol><symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol><symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol><symbol id="i-eyeoff" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 6.1A9.8 9.8 0 0 1 12 6c6 0 10 6 10 6a17 17 0 0 1-3.3 3.9M6.6 7.6C3.9 9.4 2 12 2 12s4 6 10 6c1.4 0 2.7-.3 3.8-.8"/></symbol><symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></symbol><symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="3"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol><symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol><symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol></svg>
+<header class="top"><div class="wrap bar">
+  <button class="logo" id="home" aria-label="Latch home">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#6C63FF"/><path d="M11 14v-3a5 5 0 0 1 10 0v3" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><rect x="8" y="14" width="16" height="11" rx="3" fill="#fff"/><circle cx="16" cy="19.5" r="1.8" fill="#6C63FF"/></svg>
+    Latch
+  </button>
+  <div class="row" id="navOut"><button class="btn" data-auth="in">Sign in</button><button class="btn primary" data-auth="up">Create account</button></div>
+  <div class="profile hidden" id="navIn">
+    <button class="avatar" id="avatarBtn" aria-haspopup="true" aria-expanded="false" aria-label="Open profile menu"></button>
+    <div class="menu hidden" id="menu" role="menu">
+      <div class="who"><b id="mName"></b><span class="small" id="mEmail"></span></div>
+      <button role="menuitem" id="mVault">My vault</button>
+      <button role="menuitem" id="mEdit">Edit profile</button>
+      <button role="menuitem" id="mOut">Sign out</button>
+    </div>
+  </div>
+</div></header>
+
+<main>
+<section id="landing" class="wrap">
+  <div class="hero">
+    <div>
+      <h1>Every password, one place you can trust.</h1>
+      <p class="lead">Latch stores your logins, builds strong new passwords for you, and keeps a photo with each entry so you can spot the right account fast.</p>
+      <div class="row"><button class="btn primary" data-auth="up">Create free account</button><button class="btn" data-auth="in">Sign in</button></div>
+    </div>
+    <div class="card" aria-label="Password generator">
+      <div class="gen-out"><output id="hOut" aria-live="polite"></output><button class="btn sm" id="hCopy">Copy</button><button class="btn sm" id="hNew" aria-label="Generate new password">New</button></div>
+      <div class="meter"><i id="hMeter"></i></div><div class="small" id="hLabel"></div>
+      <div class="opts" style="grid-template-columns:1fr"><label>Length <b id="hLenV">18</b><input type="range" id="hLen" min="8" max="40" value="18"></label></div>
+      <div class="opts" id="hOpts"><label><input type="checkbox" data-k="up" checked> Uppercase</label><label><input type="checkbox" data-k="lo" checked> Lowercase</label><label><input type="checkbox" data-k="nu" checked> Numbers</label><label><input type="checkbox" data-k="sy" checked> Symbols</label></div>
+    </div>
+  </div>
+  <div class="features">
+    <div><div class="ico"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div><h3>Save logins</h3><p>Keep the site, username and password together, and reveal or copy them when you need them.</p></div>
+    <div><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l2.2 5.3L20 9l-4.3 3.8L17 18.5 12 15.5 7 18.5l1.3-5.7L4 9l5.8-.7z"/></svg></div><h3>Generate strong passwords</h3><p>Choose a length and character types. Passwords are created in your browser and never sent anywhere.</p></div>
+    <div><div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M21 16l-5-4-9 7"/></svg></div><h3>Add a photo</h3><p>Attach a logo or screenshot to any entry so accounts are easy to recognise at a glance.</p></div>
+  </div>
+</section>
+
+<section id="app" class="wrap app hidden">
+  <div class="card">
+    <h2>Password generator</h2><p class="small" style="margin:0 0 14px">Create a new password, then use it in an entry.</p>
+    <div class="gen-out"><output id="aOut" aria-live="polite"></output><button class="btn sm" id="aCopy">Copy</button><button class="btn sm" id="aNew" aria-label="Generate new password">New</button></div>
+    <div class="meter"><i id="aMeter"></i></div><div class="small" id="aLabel"></div>
+    <div class="opts" style="grid-template-columns:1fr"><label>Length <b id="aLenV">18</b><input type="range" id="aLen" min="8" max="40" value="18"></label></div>
+    <div class="opts" id="aOpts"><label><input type="checkbox" data-k="up" checked> Uppercase</label><label><input type="checkbox" data-k="lo" checked> Lowercase</label><label><input type="checkbox" data-k="nu" checked> Numbers</label><label><input type="checkbox" data-k="sy" checked> Symbols</label></div>
+    <button class="btn primary" id="aUse" style="width:100%">Save as new entry</button>
+  </div>
+  <div class="card">
+    <div class="row" style="justify-content:space-between"><div><h2>Your vault</h2><span class="small" id="count"></span></div><button class="btn primary" id="addBtn">Add password</button></div>
+    <label class="field" style="margin:16px 0 0"><span class="small">Search</span><input type="search" id="q" placeholder="Search by site or username"></label>
+    <div class="list" id="list"></div>
+  </div>
+</section>
+</main>
+<footer><div class="wrap">Your vault is encrypted with AES-256 and stays in this browser. Latch cannot recover a forgotten password.</div></footer>
+
+<dialog id="authDlg"><h2 id="authTitle"></h2>
+  <form id="authForm" method="dialog" novalidate>
+    <label class="field" id="nameF"><span>Name</span><input type="text" id="aName" autocomplete="name"></label>
+    <label class="field"><span>Email</span><input type="email" id="aEmail" autocomplete="email"></label>
+    <label class="field"><span>Password</span><input type="password" id="aPass" autocomplete="current-password"></label>
+    <p class="small" id="authNote"></p>
+    <p class="err" id="authErr" role="alert"></p>
+    <div class="row" style="justify-content:space-between"><button type="button" class="btn" id="authCancel">Cancel</button><button class="btn primary" id="authGo" type="submit"></button></div>
+    <p class="small" style="margin:14px 0 0"><span id="authSwap"></span> <button type="button" class="btn sm" id="authToggle"></button></p>
+  </form>
+</dialog>
+
+<dialog id="itemDlg"><h2>Add password</h2>
+  <form id="itemForm" method="dialog" novalidate>
+    <div class="photo-pick"><div class="thumb" id="pThumb">+</div><div><button type="button" class="btn sm" id="pBtn">Add photo</button><input type="file" id="pFile" accept="image/*" class="hidden"><div class="small">Optional logo or screenshot</div></div></div>
+    <label class="field"><span>Site or app</span><input type="text" id="iSite" placeholder="example.com"></label>
+    <label class="field"><span>Username or email</span><input type="text" id="iUser" autocomplete="off"></label>
+    <label class="field"><span>Password</span><input type="password" id="iPass" autocomplete="off"></label>
+    <div class="row" style="margin:-4px 0 12px"><button type="button" class="btn sm" id="iGen">Generate password</button><button type="button" class="btn sm" id="iShow">Show</button></div>
+    <p class="err" id="itemErr" role="alert"></p>
+    <div class="row" style="justify-content:space-between"><button type="button" class="btn" id="itemCancel">Cancel</button><button class="btn primary" type="submit">Save password</button></div>
+  </form>
+</dialog>
+
+<dialog id="profDlg"><h2>Edit profile</h2>
+  <form id="profForm" method="dialog">
+    <div class="photo-pick"><div class="thumb" id="prThumb"></div><div><button type="button" class="btn sm" id="prBtn">Change photo</button><input type="file" id="prFile" accept="image/*" class="hidden"></div></div>
+    <label class="field"><span>Name</span><input type="text" id="prName"></label>
+    <div class="row" style="justify-content:space-between"><button type="button" class="btn" id="profCancel">Cancel</button><button class="btn primary" type="submit">Save changes</button></div>
+  </form>
+</dialog>
+
+<script>
+const $=s=>document.querySelector(s);
+const IMAP={'Sign in':'login','Create account':'user-plus','Create free account':'user-plus','Copy':'copy','New':'refresh','Save as new entry':'plus','Add password':'plus','Add photo':'image','Change photo':'image','Generate password':'spark','Cancel':'x','Save password':'check','Save changes':'check','My vault':'lock','Edit profile':'edit','Sign out':'logout','Show':'eye','Hide':'eyeoff','Delete':'trash'};
+const ic=n=>'<svg class="i" aria-hidden="true"><use href="#i-'+n+'"/></svg>';
+function setBtn(b,t){b.innerHTML=ic(IMAP[t])+'<span>'+t+'</span>'}
+function decorate(r){(r||document).querySelectorAll('button').forEach(b=>{const t=b.textContent.trim();if(IMAP[t]&&!b.querySelector('svg'))setBtn(b,t)})}
+const okImg=u=>typeof u==='string'&&u.length<400000&&/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(u);
+const clean=v=>({id:String(v&&v.id||Date.now()),site:String(v&&v.site||'').slice(0,120),user:String(v&&v.user||'').slice(0,200),pass:String(v&&v.pass||'').slice(0,500),photo:v&&okImg(v.photo)?v.photo:null});
+const enc=new TextEncoder(),dec=new TextDecoder();
+const b64=u=>{let s='';for(const x of new Uint8Array(u))s+=String.fromCharCode(x);return btoa(s)};
+const unb=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function derive(pass,s){const m=await crypto.subtle.importKey('raw',enc.encode(pass),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt:s,iterations:600000,hash:'SHA-256'},m,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
+async function seal(){const iv=crypto.getRandomValues(new Uint8Array(12)),ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,enc.encode(JSON.stringify({name:user.name,photo:user.photo,vault})));store.set('latch2:'+user.email,{v:2,salt:b64(salt),iv:b64(iv),ct:b64(ct)})}
+async function unseal(rec,pass){const s=unb(rec.salt),k=await derive(pass,s),pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb(rec.iv)},k,unb(rec.ct));return{k,s,data:JSON.parse(dec.decode(pt))}}
+function idle(){clearTimeout(idleT);if(key)idleT=setTimeout(()=>logout('Locked after 5 minutes of inactivity'),300000)}
+['pointerdown','keydown','touchstart'].forEach(t=>addEventListener(t,idle,{passive:true}));
+const mem={};
+const store={get(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):(mem[k]||null)}catch(e){return mem[k]||null}},set(k,v){mem[k]=v;try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let user=null,vault=[],pendingPhoto=null,mode='in',key=null,salt=null,idleT=null,clipT=null;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;d.setAttribute('role','status');document.body.appendChild(d);setTimeout(()=>d.remove(),1800)}
+async function copy(t){try{await navigator.clipboard.writeText(t);toast('Copied. Clipboard clears in 20 seconds');clearTimeout(clipT);clipT=setTimeout(()=>navigator.clipboard.writeText('').catch(()=>{}),20000)}catch(e){toast('Copy failed. Select the text and copy it.')}}
+function resize(file,size){if(!/^image\/(png|jpe?g|webp|gif)$/.test(file.type)||file.size>8e6)return Promise.reject(new Error('bad'));return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const i=new Image();i.onload=()=>{const c=document.createElement('canvas');c.width=c.height=size;const x=c.getContext('2d');const m=Math.min(i.width,i.height);x.drawImage(i,(i.width-m)/2,(i.height-m)/2,m,m,0,0,size,size);res(c.toDataURL('image/jpeg',.8))};i.onerror=rej;i.src=r.result};r.onerror=rej;r.readAsDataURL(file)})}
+
+/* generator */
+const SETS={up:'ABCDEFGHJKLMNPQRSTUVWXYZ',lo:'abcdefghijkmnopqrstuvwxyz',nu:'23456789',sy:'!@#$%^&*-_=+?'};
+function makeGen(p){
+  const out=$('#'+p+'Out'),len=$('#'+p+'Len'),meter=$('#'+p+'Meter'),label=$('#'+p+'Label'),lv=$('#'+p+'LenV'),opts=document.querySelectorAll('#'+p+'Opts input');
+  function gen(){
+    let pool='';opts.forEach(o=>{if(o.checked)pool+=SETS[o.dataset.k]});
+    if(!pool){opts[1].checked=true;pool=SETS.lo}
+    const n=+len.value,a=new Uint32Array(n);crypto.getRandomValues(a);
+    out.textContent=[...a].map(v=>pool[v%pool.length]).join('');lv.textContent=n;out.classList.remove('flash');void out.offsetWidth;out.classList.add('flash');
+    const bits=n*Math.log2(pool.length),pct=Math.min(100,bits/100*100);
+    const [t,c]=bits<45?['Weak','var(--bad)']:bits<65?['Fair','#E0A31B']:bits<90?['Strong','var(--accent)']:['Very strong','var(--accent)'];
+    meter.style.width=pct+'%';meter.style.background=c;label.textContent=t;
+  }
+  len.oninput=gen;opts.forEach(o=>o.onchange=gen);$('#'+p+'New').onclick=gen;$('#'+p+'Copy').onclick=()=>copy(out.textContent);gen();
+  return {gen,get:()=>out.textContent};
+}
+const gH=makeGen('h'),gA=makeGen('a');
+
+/* views + session */
+function avatarHTML(u){return okImg(u.photo)?'<img alt="" src="'+u.photo+'">':esc((u.name||u.email)[0].toUpperCase())}
+function render(){
+  const on=!!user;
+  $('#landing').classList.toggle('hidden',on);$('#app').classList.toggle('hidden',!on);
+  $('#navOut').classList.toggle('hidden',on);$('#navIn').classList.toggle('hidden',!on);
+  if(on){$('#avatarBtn').innerHTML=avatarHTML(user);$('#mName').textContent=user.name;$('#mEmail').textContent=user.email;renderList()}
+}
+function renderList(){
+  const q=$('#q').value.trim().toLowerCase();
+  const items=vault.filter(v=>!q||v.site.toLowerCase().includes(q)||v.user.toLowerCase().includes(q));
+  $('#count').textContent=vault.length+(vault.length===1?' saved password':' saved passwords');
+  const l=$('#list');
+  if(!items.length){l.innerHTML='<div class="empty">'+(vault.length?'No entries match your search.':'No passwords yet. Choose Add password to save your first one.')+'</div>';return}
+  l.innerHTML=items.map(v=>'<div class="item" data-id="'+esc(v.id)+'"><div class="thumb">'+(okImg(v.photo)?'<img alt="" src="'+v.photo+'">':esc(v.site[0].toUpperCase()))+'</div><div class="meta"><b>'+esc(v.site)+'</b><span class="small">'+esc(v.user||'No username')+'</span><div class="pw" data-shown="0">••••••••••••</div></div><div class="row"><button class="btn sm" data-a="show">Show</button><button class="btn sm" data-a="copy">Copy</button><button class="btn sm danger" data-a="del">Delete</button></div></div>').join('');decorate(l);
+}
+$('#list').onclick=e=>{
+  const b=e.target.closest('button');if(!b)return;
+  const it=b.closest('.item'),v=vault.find(x=>x.id===it.dataset.id),pw=it.querySelector('.pw');
+  if(b.dataset.a==='show'){const s=pw.dataset.shown==='1';pw.textContent=s?'••••••••••••':v.pass;pw.dataset.shown=s?'0':'1';setBtn(b,s?'Show':'Hide');if(!s)setTimeout(()=>{if(pw.dataset.shown==='1'){pw.textContent='••••••••••••';pw.dataset.shown='0';setBtn(b,'Show')}},10000)}
+  if(b.dataset.a==='copy')copy(v.pass);
+  if(b.dataset.a==='del'&&confirm('Delete the password for '+v.site+'?')){vault=vault.filter(x=>x.id!==v.id);saveVault();renderList();toast('Deleted')}
+};
+$('#q').oninput=renderList;
+const saveVault=()=>seal().catch(()=>toast('Could not save. Browser storage may be full or blocked.'));
+function logout(msg){user=null;vault=[];key=null;salt=null;clearTimeout(idleT);closeMenu();document.querySelectorAll('dialog[open]').forEach(d=>d.close());render();window.scrollTo(0,0);if(msg)toast(msg)}
+
+/* menu */
+function closeMenu(){$('#menu').classList.add('hidden');$('#avatarBtn').setAttribute('aria-expanded','false')}
+$('#avatarBtn').onclick=e=>{e.stopPropagation();const h=$('#menu').classList.toggle('hidden');$('#avatarBtn').setAttribute('aria-expanded',String(!h))};
+document.addEventListener('click',e=>{if(!e.target.closest('#menu'))closeMenu()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenu()});
+$('#mOut').onclick=()=>logout();
+$('#mVault').onclick=()=>{closeMenu();$('#app').scrollIntoView()};
+$('#home').onclick=()=>window.scrollTo(0,0);
+
+/* auth */
+function openAuth(m){mode=m;const up=m==='up';
+  $('#authTitle').textContent=up?'Create your account':'Sign in to Latch';
+  setBtn($('#authGo'),up?'Create account':'Sign in');
+  $('#nameF').classList.toggle('hidden',!up);
+  $('#aPass').autocomplete=up?'new-password':'current-password';
+  $('#authSwap').textContent=up?'Already have an account?':'New to Latch?';
+  setBtn($('#authToggle'),up?'Sign in':'Create account');
+  $('#authErr').textContent='';$('#authNote').textContent=up?'Your password encrypts your vault. It cannot be recovered if you forget it, so use 12 or more characters you will remember.':'';$('#authForm').reset();$('#authDlg').showModal()}
+document.querySelectorAll('[data-auth]').forEach(b=>b.onclick=()=>openAuth(b.dataset.auth));
+$('#authToggle').onclick=()=>openAuth(mode==='up'?'in':'up');
+$('#authCancel').onclick=()=>$('#authDlg').close();
+$('#authForm').onsubmit=async e=>{
+  e.preventDefault();
+  const email=$('#aEmail').value.trim().toLowerCase().slice(0,254),pass=$('#aPass').value,name=$('#aName').value.trim().slice(0,60),err=$('#authErr'),go=$('#authGo');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){err.textContent='Enter a valid email address.';return}
+  const att=store.get('latch_att')||{n:0,until:0},wait=Math.ceil((att.until-Date.now())/1000);
+  if(wait>0){err.textContent='Too many attempts. Try again in '+wait+' seconds.';return}
+  go.disabled=true;err.textContent='';
+  try{
+    const rec=store.get('latch2:'+email);
+    if(mode==='up'){
+      if(!name){err.textContent='Enter your name.';return}
+      if(pass.length<12){err.textContent='Use at least 12 characters for your password.';return}
+      if(rec){err.textContent='An account with this email already exists. Sign in instead.';return}
+      const s=crypto.getRandomValues(new Uint8Array(16)),k=await derive(pass,s);
+      user={email,name,photo:null};vault=[];key=k;salt=s;await seal();
+    }else{
+      let ok=null;
+      try{ok=rec?await unseal(rec,pass):null}catch(x){ok=null}
+      if(!ok){await derive(pass,crypto.getRandomValues(new Uint8Array(16)));att.n++;att.until=att.n>=3?Date.now()+Math.min(2**(att.n-2)*1000,300000):0;store.set('latch_att',att);err.textContent='Email or password is incorrect.';return}
+      user={email,name:String(ok.data.name||'').slice(0,60)||email,photo:okImg(ok.data.photo)?ok.data.photo:null};
+      vault=Array.isArray(ok.data.vault)?ok.data.vault.map(clean):[];key=ok.k;salt=ok.s;
+    }
+    store.set('latch_att',{n:0,until:0});
+    $('#authForm').reset();$('#authDlg').close();render();idle();toast(mode==='up'?'Account created':'Signed in');
+  }catch(x){err.textContent='Something went wrong. Check that your browser allows storage and try again.';user=null;key=null}
+  finally{go.disabled=false}
+};
+
+/* add item */
+function openItem(pw){pendingPhoto=null;$('#itemForm').reset();$('#iPass').type='password';setBtn($('#iShow'),'Show');$('#pThumb').textContent='+';$('#itemErr').textContent='';$('#iPass').value=pw||'';$('#itemDlg').showModal()}
+$('#addBtn').onclick=()=>openItem('');
+$('#aUse').onclick=()=>openItem(gA.get());
+$('#iShow').onclick=()=>{const i=$('#iPass'),h=i.type==='password';i.type=h?'text':'password';setBtn($('#iShow'),h?'Hide':'Show')};
+$('#iGen').onclick=()=>{$('#iPass').value=gA.get()};
+$('#itemCancel').onclick=()=>$('#itemDlg').close();
+$('#pBtn').onclick=()=>$('#pFile').click();
+$('#pThumb').onclick=()=>$('#pFile').click();
+$('#pFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{pendingPhoto=await resize(f,160);$('#pThumb').innerHTML='<img alt="Selected photo" src="'+pendingPhoto+'">'}catch(x){$('#itemErr').textContent='That file could not be read as an image.'}};
+$('#itemForm').onsubmit=e=>{
+  e.preventDefault();
+  const site=$('#iSite').value.trim(),pass=$('#iPass').value;
+  if(!site||!pass){$('#itemErr').textContent='Enter a site and a password.';return}
+  vault.unshift({id:String(Date.now()),site,user:$('#iUser').value.trim(),pass,photo:pendingPhoto});
+  saveVault();renderList();$('#itemDlg').close();toast('Password saved');
+};
+
+/* profile */
+let newAvatar=null;
+$('#mEdit').onclick=()=>{closeMenu();newAvatar=user.photo;$('#prName').value=user.name;$('#prThumb').innerHTML=avatarHTML(user);$('#profDlg').showModal()};
+$('#profCancel').onclick=()=>$('#profDlg').close();
+$('#prBtn').onclick=()=>$('#prFile').click();
+$('#prFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{newAvatar=await resize(f,120);$('#prThumb').innerHTML='<img alt="" src="'+newAvatar+'">'}catch(x){toast('That file is not a readable image')}};
+$('#profForm').onsubmit=async e=>{
+  e.preventDefault();
+  const n=$('#prName').value.trim().slice(0,60);if(!n)return;
+  user.name=n;user.photo=okImg(newAvatar)?newAvatar:null;saveVault();
+  $('#profDlg').close();render();toast('Profile updated');
+};
+
+(function(){const w=document.createElement('div'),r=Math.random;w.className='particles';w.setAttribute('aria-hidden','true');for(let i=0;i<14;i++){const p=document.createElement('i'),z=20+r()*70;p.style.cssText='width:'+z+'px;height:'+z+'px;left:'+r()*100+'%;top:'+r()*100+'%;--dx:'+(r()-.5)*80+'px;--dy:'+(-30-r()*90)+'px;animation-duration:'+(9+r()*12)+'s,'+(4+r()*5)+'s;animation-delay:'+(-r()*12)+'s,'+(-r()*6)+'s';w.appendChild(p)}document.body.prepend(w)})();
+document.addEventListener('pointerdown',e=>{const b=e.target.closest('.btn');if(!b)return;const q=b.getBoundingClientRect(),d=Math.max(q.width,q.height),n=document.createElement('span');n.className='rip';n.style.cssText='width:'+d+'px;height:'+d+'px;left:'+(e.clientX-q.left-d/2)+'px;top:'+(e.clientY-q.top-d/2)+'px';b.appendChild(n);setTimeout(()=>n.remove(),600)});
+decorate();
+/* restore session */
+render();
+</script>
+</body>
+</html>
